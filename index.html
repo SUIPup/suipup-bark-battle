@@ -37,16 +37,16 @@
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const scoreDisplay = document.getElementById("score");
-
+const pupImg = new Image();
+pupImg.src = "sui-pup.PNG"; // Make sure this filename matches your uploaded image
     let pup = { x: 50, y: 300, width: 40, height: 40, velocityY: 0, jumpPower: -10, gravity: 0.6, grounded: false };
     let meats = [];
     let frame = 0;
     let score = 0;
 
     function drawPup() {
-      ctx.fillStyle = "#f4a460"; // Sui Pup color
-      ctx.fillRect(pup.x, pup.y, pup.width, pup.height);
-    }
+  ctx.drawImage(pupImg, pup.x, pup.y, pup.width, pup.height);
+}
 
     function drawGround() {
       ctx.fillStyle = "#228B22";
