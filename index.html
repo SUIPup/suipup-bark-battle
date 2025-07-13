@@ -19,22 +19,21 @@
       border: 3px solid #444;
     }
 
-    #score {
+    #score, #meat-bar {
       position: absolute;
       top: 10px;
-      left: 10px;
       font-size: 20px;
-      color: #222;
       font-weight: bold;
     }
 
+    #score {
+      left: 10px;
+      color: #222;
+    }
+
     #meat-bar {
-      position: absolute;
-      top: 10px;
       right: 10px;
-      font-size: 20px;
       color: #b10000;
-      font-weight: bold;
     }
 
     #win {
@@ -50,24 +49,72 @@
       display: none;
       text-align: center;
     }
+
+    #start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    #bottom-icons {
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      z-index: 5;
+    }
+
+    #bottom-icons img {
+      width: 50px;
+      height: 50px;
+    }
+
+    #bottom-icons span {
+      font-size: 16px;
+      color: #000;
+    }
   </style>
 </head>
 <body>
   <div id="score">🥩 0</div>
   <div id="meat-bar">Meat: ░░░░░░</div>
-  <div id="win">YOU MADE IT TO THE FINISH LINE! 🎉</div>
+  <div id="win"></div>
+  <div id="start-screen">🐶 Tap to Start!</div>
   <canvas id="game" width="800" height="400"></canvas>
+
+  <div id="bottom-icons">
+    <img src="meat-ui-icon.png" alt="Meat" />
+    <span>← Collect</span>
+    <img src="rug-ui-icon-clean.png" alt="Rug" />
+    <span>← Avoid</span>
+  </div>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
+
     const scoreDisplay = document.getElementById("score");
     const meatBar = document.getElementById("meat-bar");
     const winMessage = document.getElementById("win");
+    const startScreen = document.getElementById("start-screen");
 
-    // 🐶 Load Sui Pup image
     const pupImg = new Image();
-    pupImg.src = "sui-pup-circle.PNG"; // Make sure this file is uploaded
+    pupImg.src = "sui-pup-circle.png";
+
+    const rugImg = new Image();
+    rugImg.src = "rug-ui-icon-clean.png";
 
     let pup = {
       x: 50,
@@ -82,10 +129,13 @@
 
     let meats = [];
     let obstacles = [];
-    let finishLineX = 1200;
     let score = 0;
     let frame = 0;
+    let rugsSpawned = 0;
+    let maxRugs = 888;
     let gameOver = false;
+    let gameStarted = false;
+    let finishLineX = 999999; // won't appear until score hits 1000
 
     function drawPup() {
       ctx.drawImage(pupImg, pup.x, pup.y, pup.width, pup.height);
@@ -104,11 +154,11 @@
     }
 
     function drawObstacle(obstacle) {
-      ctx.fillStyle = "#b30000"; // red rug
-      ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      ctx.drawImage(rugImg, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
     }
 
     function drawFinishLine() {
+      if (score < 1000) return;
       ctx.fillStyle = "#000";
       ctx.fillRect(finishLineX, 0, 10, canvas.height - 50);
       ctx.font = "20px sans-serif";
@@ -118,12 +168,13 @@
 
     function updateUI() {
       scoreDisplay.innerText = `🥩 ${score}`;
-      const bar = "██████".substring(0, Math.min(score, 6)) + "░░░░░░".substring(score);
+      const filled = Math.min(score / 1000 * 6, 6);
+      const bar = "██████".substring(0, filled) + "░░░░░░".substring(filled);
       meatBar.innerText = `Meat: ${bar}`;
     }
 
     function update() {
-      if (gameOver) return;
+      if (!gameStarted || gameOver) return;
       frame++;
 
       // Gravity
@@ -140,16 +191,17 @@
       }
 
       // Spawn meat
-      if (frame % 90 === 0) {
+      if (frame % 90 === 0 && score < 1000) {
         meats.push({ x: canvas.width + 20, y: canvas.height - 80 });
       }
 
       // Spawn rugs
-      if (frame % 180 === 0) {
+      if (frame % 150 === 0 && rugsSpawned < maxRugs) {
         obstacles.push({ x: canvas.width, y: canvas.height - 65, width: 60, height: 15 });
+        rugsSpawned++;
       }
 
-      // Move meats & check collision
+      // Move meat
       for (let i = meats.length - 1; i >= 0; i--) {
         meats[i].x -= 4;
         if (
@@ -165,7 +217,7 @@
         }
       }
 
-      // Move rugs & check collision
+      // Move rugs
       for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].x -= 4;
 
@@ -176,8 +228,8 @@
           pup.y + pup.height > obstacles[i].y
         ) {
           gameOver = true;
+          winMessage.innerText = "💥 You tripped on a rug!\nTap to retry.";
           winMessage.style.display = "block";
-          winMessage.innerText = "💥 You tripped on the rug!\nTap to retry";
         }
 
         if (obstacles[i].x < -70) {
@@ -185,12 +237,17 @@
         }
       }
 
-      // Finish line check
+      // Trigger finish line after 1000 meat
+      if (score >= 1000 && finishLineX === 999999) {
+        finishLineX = canvas.width + 400;
+      }
+
       finishLineX -= 4;
-      if (finishLineX < pup.x + pup.width && !gameOver) {
+
+      if (score >= 1000 && finishLineX < pup.x + pup.width && !gameOver) {
         gameOver = true;
-        winMessage.style.display = "block";
         winMessage.innerText = "🎉 YOU MADE IT TO THE FINISH LINE!";
+        winMessage.style.display = "block";
       }
 
       updateUI();
@@ -213,13 +270,16 @@
 
     // Controls
     window.addEventListener("keydown", (e) => {
-      if ((e.code === "Space" || e.code === "ArrowUp") && pup.grounded && !gameOver) {
+      if ((e.code === "Space" || e.code === "ArrowUp") && pup.grounded && gameStarted && !gameOver) {
         pup.velocityY = pup.jumpPower;
       }
     });
 
     canvas.addEventListener("click", () => {
-      if (gameOver) {
+      if (!gameStarted) {
+        gameStarted = true;
+        startScreen.style.display = "none";
+      } else if (gameOver) {
         window.location.reload();
       } else if (pup.grounded) {
         pup.velocityY = pup.jumpPower;
