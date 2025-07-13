@@ -27,26 +27,69 @@
       color: #222;
       font-weight: bold;
     }
+
+    #meat-bar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      color: #b10000;
+      font-weight: bold;
+    }
+
+    #win {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fffbe0;
+      padding: 20px 30px;
+      border: 2px solid #222;
+      font-size: 28px;
+      font-weight: bold;
+      display: none;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <div id="score">🥩 0</div>
+  <div id="meat-bar">Meat: ░░░░░░</div>
+  <div id="win">YOU MADE IT TO THE FINISH LINE! 🎉</div>
   <canvas id="game" width="800" height="400"></canvas>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const scoreDisplay = document.getElementById("score");
-const pupImg = new Image();
-pupImg.src = "sui-pup-circle.PNG"; // Make sure this filename matches your uploaded image
-    let pup = { x: 50, y: 300, width: 40, height: 40, velocityY: 0, jumpPower: -10, gravity: 0.6, grounded: false };
+    const meatBar = document.getElementById("meat-bar");
+    const winMessage = document.getElementById("win");
+
+    // 🐶 Load Sui Pup image
+    const pupImg = new Image();
+    pupImg.src = "sui-pup-circle.png"; // Make sure this file is uploaded
+
+    let pup = {
+      x: 50,
+      y: 300,
+      width: 60,
+      height: 60,
+      velocityY: 0,
+      jumpPower: -10,
+      gravity: 0.6,
+      grounded: false
+    };
+
     let meats = [];
-    let frame = 0;
+    let obstacles = [];
+    let finishLineX = 1200;
     let score = 0;
+    let frame = 0;
+    let gameOver = false;
 
     function drawPup() {
-  ctx.drawImage(pupImg, pup.x, pup.y, pup.width, pup.height);
-}
+      ctx.drawImage(pupImg, pup.x, pup.y, pup.width, pup.height);
+    }
 
     function drawGround() {
       ctx.fillStyle = "#228B22";
@@ -60,7 +103,27 @@ pupImg.src = "sui-pup-circle.PNG"; // Make sure this filename matches your uploa
       ctx.fill();
     }
 
+    function drawObstacle(obstacle) {
+      ctx.fillStyle = "#b30000"; // red rug
+      ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+    }
+
+    function drawFinishLine() {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(finishLineX, 0, 10, canvas.height - 50);
+      ctx.font = "20px sans-serif";
+      ctx.fillStyle = "#fff";
+      ctx.fillText("🏁", finishLineX - 5, canvas.height - 60);
+    }
+
+    function updateUI() {
+      scoreDisplay.innerText = `🥩 ${score}`;
+      const bar = "██████".substring(0, Math.min(score, 6)) + "░░░░░░".substring(score);
+      meatBar.innerText = `Meat: ${bar}`;
+    }
+
     function update() {
+      if (gameOver) return;
       frame++;
 
       // Gravity
@@ -76,9 +139,14 @@ pupImg.src = "sui-pup-circle.PNG"; // Make sure this filename matches your uploa
         pup.grounded = false;
       }
 
-      // Spawn new meat
-      if (frame % 100 === 0) {
-        meats.push({ x: canvas.width, y: canvas.height - 80 });
+      // Spawn meat
+      if (frame % 90 === 0) {
+        meats.push({ x: canvas.width + 20, y: canvas.height - 80 });
+      }
+
+      // Spawn rugs
+      if (frame % 180 === 0) {
+        obstacles.push({ x: canvas.width, y: canvas.height - 65, width: 60, height: 15 });
       }
 
       // Move meats & check collision
@@ -97,14 +165,44 @@ pupImg.src = "sui-pup-circle.PNG"; // Make sure this filename matches your uploa
         }
       }
 
-      scoreDisplay.innerText = `🥩 ${score}`;
+      // Move rugs & check collision
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].x -= 4;
+
+        if (
+          pup.x < obstacles[i].x + obstacles[i].width &&
+          pup.x + pup.width > obstacles[i].x &&
+          pup.y < obstacles[i].y + obstacles[i].height &&
+          pup.y + pup.height > obstacles[i].y
+        ) {
+          gameOver = true;
+          winMessage.style.display = "block";
+          winMessage.innerText = "💥 You tripped on the rug!\nTap to retry";
+        }
+
+        if (obstacles[i].x < -70) {
+          obstacles.splice(i, 1);
+        }
+      }
+
+      // Finish line check
+      finishLineX -= 4;
+      if (finishLineX < pup.x + pup.width && !gameOver) {
+        gameOver = true;
+        winMessage.style.display = "block";
+        winMessage.innerText = "🎉 YOU MADE IT TO THE FINISH LINE!";
+      }
+
+      updateUI();
     }
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGround();
       drawPup();
+      drawFinishLine();
       meats.forEach(drawMeat);
+      obstacles.forEach(drawObstacle);
     }
 
     function loop() {
@@ -113,15 +211,19 @@ pupImg.src = "sui-pup-circle.PNG"; // Make sure this filename matches your uploa
       requestAnimationFrame(loop);
     }
 
-    // Jump handler
+    // Controls
     window.addEventListener("keydown", (e) => {
-      if ((e.code === "Space" || e.code === "ArrowUp") && pup.grounded) {
+      if ((e.code === "Space" || e.code === "ArrowUp") && pup.grounded && !gameOver) {
         pup.velocityY = pup.jumpPower;
       }
     });
 
     canvas.addEventListener("click", () => {
-      if (pup.grounded) pup.velocityY = pup.jumpPower;
+      if (gameOver) {
+        window.location.reload();
+      } else if (pup.grounded) {
+        pup.velocityY = pup.jumpPower;
+      }
     });
 
     loop();
