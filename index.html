@@ -1,34 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SUI Pup Bark Battle</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SUI Pup – Bark Battle</title>
   <style>
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
+      background-color: #f4e7cd;
+      font-family: 'Arial', sans-serif;
       overflow: hidden;
-      background-color: #000;
-    }
-    canvas {
-      display: block;
-      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       height: 100vh;
     }
+
     #score {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      color: white;
-      font-family: sans-serif;
-      font-size: 18px;
+      font-size: 20px;
+      margin: 10px;
+      display: none;
+    }
+
+    canvas {
+      border: 2px solid #000;
+      background-color: #fff;
+      display: block;
+      max-width: 100%;
+      height: auto;
     }
   </style>
 </head>
 <body>
-  <div id="score">Score: 0</div>
-  <canvas id="gameCanvas" width="480" height="640"></canvas>
-  <script src="game.js"></script>
+
+  <div id="score">Score: 0 | High: 0</div>
+  <canvas id="gameCanvas" width="360" height="500"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let pupY = 150;
+    let velocity = 0;
+    let gravity = 0.5;
+    let obstacles = [];
+    let score = 0;
+    let gameStarted = false;
+    let highScore = localStorage.getItem("highScore") || 0;
+
+    function drawStartScreen() {
+      ctx.fillStyle = "#222";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#fff";
+      ctx.font = "28px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Tap to Start!", canvas.width / 2, canvas.height / 2);
+    }
+
+    function drawPup() {
+      ctx.fillStyle = "#f4a460";
+      ctx.beginPath();
+      ctx.arc(50, pupY, 15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawObstacles() {
+      ctx.fillStyle = "#FF6347";
+      for (let obs of obstacles) {
+        ctx.fillRect(obs.x, 0, 20, obs.top);
+        ctx.fillRect(obs.x, obs.top + 80, 20, canvas.height - obs.top - 80);
+      }
+    }
+
+    function updateObstacles() {
+      if (Math.random() < 0.02) {
+        let top = Math.random() * 200 + 20;
+        obstacles.push({ x: canvas.width, top });
+      }
+
+      for (let obs of obstacles) {
+        obs.x -= 2;
+        if (obs.x === 50) score++;
+      }
+
+      obstacles = obstacles.filter(obs => obs.x > -20);
+    }
+
+    function checkCollision() {
+      for (let obs of obstacles) {
+        if (50 + 15 > obs.x && 50 - 15 < obs.x + 20) {
+          if (pupY - 15 < obs.top || pupY + 15 > obs.top + 80) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      pupY += velocity;
+      velocity += gravity;
+      drawPup();
+      updateObstacles();
+      drawObstacles();
+
+      if (checkCollision() || pupY > canvas.height || pupY < 0) {
+        alert("Game Over! Final Score: " + score);
+        if (score > highScore) {
+          localStorage.setItem("highScore", score);
+        }
+        location.reload();
+      }
+
+      document.getElementById("score").innerText = `Score: ${score} | High: ${highScore}`;
+      requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      gameStarted = true;
+      document.getElementById("score").style.display = "block";
+      gameLoop();
+    }
+
+    function handleStart() {
+      if (!gameStarted) {
+        startGame();
+      } else {
+        velocity = -7;
+      }
+    }
+
+    document.addEventListener("keydown", () => handleStart());
+    document.addEventListener("touchstart", () => handleStart());
+
+    // Draw the intro screen before the game starts
+    drawStartScreen();
+  </script>
+
 </body>
 </html>
