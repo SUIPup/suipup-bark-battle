@@ -48,6 +48,7 @@
       font-weight: bold;
       display: none;
       text-align: center;
+      z-index: 15;
     }
 
     #start-screen {
@@ -62,7 +63,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 10;
+      z-index: 20;
     }
 
     #bottom-icons {
@@ -95,7 +96,7 @@
   <canvas id="game" width="800" height="400"></canvas>
 
   <div id="bottom-icons">
-    <img src="meat-icon-final.png" alt="Meat" />
+    <img src="steak-icon-final.png" alt="Meat" />
     <span>← Collect</span>
     <img src="rug-icon-final.png" alt="Rug" />
     <span>← Avoid</span>
@@ -111,10 +112,10 @@
     const startScreen = document.getElementById("start-screen");
 
     const pupImg = new Image();
-    pupImg.src = "sui-pup-circle.PNG";
+    pupImg.src = "sui-pup-circle.png";
 
     const rugImg = new Image();
-    rugImg.src = "rug-ui-icon.png";
+    rugImg.src = "rug-icon-final.png";
 
     let pup = {
       x: 50,
@@ -201,7 +202,7 @@
         rugsSpawned++;
       }
 
-      // Move meat
+      // Move meats
       for (let i = meats.length - 1; i >= 0; i--) {
         meats[i].x -= 4;
         if (
@@ -237,7 +238,7 @@
         }
       }
 
-      // Trigger finish line after 1000 meat
+      // Trigger finish line
       if (score >= 1000 && finishLineX === 999999) {
         finishLineX = canvas.width + 400;
       }
@@ -268,20 +269,25 @@
       requestAnimationFrame(loop);
     }
 
-    // Controls
-    window.addEventListener("keydown", (e) => {
-      if ((e.code === "Space" || e.code === "ArrowUp") && pup.grounded && gameStarted && !gameOver) {
+    // Universal click to start
+    document.body.addEventListener("click", () => {
+      if (!gameStarted) {
+        gameStarted = true;
+        startScreen.style.display = "none";
+      }
+    });
+
+    // Canvas click to jump or reset
+    canvas.addEventListener("click", () => {
+      if (gameOver) {
+        window.location.reload();
+      } else if (pup.grounded) {
         pup.velocityY = pup.jumpPower;
       }
     });
 
-    canvas.addEventListener("click", () => {
-      if (!gameStarted) {
-        gameStarted = true;
-        startScreen.style.display = "none";
-      } else if (gameOver) {
-        window.location.reload();
-      } else if (pup.grounded) {
+    window.addEventListener("keydown", (e) => {
+      if ((e.code === "Space" || e.code === "ArrowUp") && pup.grounded && gameStarted && !gameOver) {
         pup.velocityY = pup.jumpPower;
       }
     });
